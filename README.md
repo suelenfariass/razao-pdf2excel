@@ -1,44 +1,42 @@
-# 🧾 Razão PDF → Excel (Tabular)
+# Razão PDF → Excel (Tabular)
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Made%20with-Python-3776AB?style=for-the-badge&logo=python&logoColor=white"/>
-  <img src="https://img.shields.io/github/license/suelenfariass/razao-pdf2excel?style=for-the-badge"/>
-  <img src="https://img.shields.io/github/stars/suelenfariass/razao-pdf2excel?style=for-the-badge&color=yellow"/>
-  <img src="https://img.shields.io/github/last-commit/suelenfariass/razao-pdf2excel?style=for-the-badge&color=orange"/>
-</p>
-
-> **Transforme PDFs de Razão Contábil em planilhas Excel tabuladas, prontas para análise.**  
-> Um utilitário simples, rápido e open source feito com **pandas**, **pdfplumber** e **openpyxl**.
+[![Made with Python](https://img.shields.io/badge/Made%20with-Python-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/github/license/suelenfariass/razao-pdf2excel?style=flat)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/suelenfariass/razao-pdf2excel?style=flat&color=yellow)](https://github.com/suelenfariass/razao-pdf2excel/stargazers)
+[![Last Commit](https://img.shields.io/github/last-commit/suelenfariass/razao-pdf2excel?style=flat&color=orange)](https://github.com/suelenfariass/razao-pdf2excel)
 
 ---
 
-## 🚀 O que é
+## Descrição
 
-O **Razão PDF → Excel** é um script em Python que lê relatórios de Razão Contábil em PDF e exporta os lançamentos de forma **estruturada em Excel**, mantendo colunas padronizadas como:
+**Razão PDF → Excel** é um utilitário em Python desenvolvido para extrair lançamentos contábeis de relatórios de Razão em PDF e convertê-los para um formato tabular em Excel.  
 
-| Dt. Movto | Lote | Lanç | Histórico | Débito | Crédito | Saldo Acum |
-|------------|-------|-------|------------|----------|-----------|-------------|
-| 01/01/2025 | 12 | 1 | Pagamento de fornecedor | 10.000,00 | 0,00 | 10.000,00C |
-
-Ideal para:
-- Contadores e controllers que recebem o Razão em PDF;
-- Analistas de dados que precisam importar lançamentos para o Power BI, Excel ou Python;
-- Quem quer automatizar a conversão de relatórios contábeis para bases estruturadas.
+O projeto tem como objetivo facilitar a análise de dados contábeis, automatizando a estruturação de relatórios frequentemente distribuídos apenas em PDF.
 
 ---
 
-## 🛠️ Stack principal
+## Principais Recursos
 
-- 🐍 [Python 3.9+](https://www.python.org/)
-- 🧩 [pandas](https://pandas.pydata.org/)
-- 📄 [pdfplumber](https://github.com/jsvine/pdfplumber)
-- 📘 [openpyxl](https://openpyxl.readthedocs.io/)
+- Leitura e extração automática de lançamentos contábeis.
+- Identificação de campos `Data`, `Lote`, `Lançamento`, `Histórico`, `Débito`, `Crédito` e `Saldo Acumulado`.
+- Remoção de cabeçalhos e rodapés de páginas.
+- Exportação direta para Excel (`.xlsx`).
+- Interface de linha de comando (CLI) simples e personalizável.
 
 ---
 
-## ⚙️ Instalação
+## Tecnologias Utilizadas
 
-Clone o repositório e instale as dependências:
+- [Python 3.9+](https://www.python.org/)
+- [pandas](https://pandas.pydata.org/)
+- [pdfplumber](https://github.com/jsvine/pdfplumber)
+- [openpyxl](https://openpyxl.readthedocs.io/)
+
+---
+
+## Instalação
+
+Clone o repositório e instale as dependências necessárias:
 
 ```bash
 git clone https://github.com/suelenfariass/razao-pdf2excel.git
@@ -55,7 +53,9 @@ pip install -r requirements.txt
 
 ---
 
-## ▶️ Uso
+## Uso
+
+Execute o script principal informando o arquivo PDF de entrada e o caminho de saída do Excel:
 
 ```bash
 python src/razao_pdf2xlsx.py --pdf "entrada.pdf" --out "saida.xlsx"
@@ -63,14 +63,14 @@ python src/razao_pdf2xlsx.py --pdf "entrada.pdf" --out "saida.xlsx"
 
 ### Argumentos disponíveis
 
-| Flag | Descrição |
-|------|------------|
-| `--pdf` | Caminho do PDF de entrada |
+| Argumento | Descrição |
+|------------|------------|
+| `--pdf` | Caminho do arquivo PDF de entrada |
 | `--out` | Caminho do arquivo Excel de saída |
-| `--sheet-name` | Nome da aba no Excel (padrão: `lancamentos`) |
-| `--ignore` | Linha/padrão adicional para ignorar (pode repetir a flag) |
+| `--sheet-name` | Nome da planilha no Excel (padrão: `lancamentos`) |
+| `--ignore` | Texto adicional a ser ignorado durante a leitura (pode ser repetido) |
 
-### Exemplo prático
+### Exemplo
 
 ```bash
 python src/razao_pdf2xlsx.py ^
@@ -80,28 +80,24 @@ python src/razao_pdf2xlsx.py ^
   --ignore "Empresa XYZ S.A."
 ```
 
-💡 **Dica:** use `--ignore` para eliminar cabeçalhos e rodapés personalizados do seu relatório.
-
 ---
 
-## 🧠 Como funciona
+## Funcionamento
 
-1. Detecta automaticamente cada lançamento pelo padrão `DD/MM/AAAA  LOTE  LANC` em qualquer ponto da linha;  
-2. Agrupa todas as linhas de um mesmo lançamento (incluindo continuações);  
-3. Extrai os três valores principais (`Débito`, `Crédito`, `Saldo Acum`) e limpa o histórico;  
-4. Gera um Excel tabulado e pronto para análise.
+1. O script identifica linhas de lançamento pelo padrão `DD/MM/AAAA  LOTE  LANC`.
+2. Agrupa linhas contínuas que pertencem ao mesmo lançamento.
+3. Extrai os valores de `Débito`, `Crédito` e `Saldo`.
+4. Gera uma planilha Excel padronizada e pronta para uso analítico.
 
----
+### Exemplo de Conversão
 
-## ⚡ Exemplo visual
-
-```text
+Entrada (PDF):
+```
 01/01/2025   12   1   Pagamento fornecedor X  10.000,00  0,00  10.000,00C
 02/01/2025   12   2   Recebimento cliente Y    0,00     3.500,00  6.500,00D
 ```
 
-⬇️  
-Gera automaticamente:
+Saída (Excel):
 
 | Dt. Movto | Lote | Lanç | Histórico | Débito | Crédito | Saldo Acum |
 |------------|-------|-------|------------|----------|-----------|-------------|
@@ -110,7 +106,7 @@ Gera automaticamente:
 
 ---
 
-## 📂 Estrutura do projeto
+## Estrutura do Projeto
 
 ```
 razao-pdf2excel/
@@ -130,41 +126,35 @@ razao-pdf2excel/
 
 ---
 
-## 🧩 Roadmap
+## Roadmap
 
-- [x] Parser robusto com regex dinâmica  
-- [x] CLI com argparse  
-- [ ] Adicionar suporte a múltiplos PDFs por pasta  
-- [ ] Exportação opcional para `.parquet`  
-- [ ] Publicação no PyPI (`pip install razao-pdf2excel`)  
+- [x] Implementação inicial do parser e CLI  
+- [x] Geração de Excel com `pandas` e `openpyxl`  
+- [ ] Suporte a múltiplos arquivos PDF por lote  
+- [ ] Exportação opcional em `.parquet`  
+- [ ] Empacotamento para instalação via `pip`  
 
 ---
 
-## 💬 Contribuindo
+## Contribuindo
 
-Quer ajudar a melhorar o projeto?
-
-1. Faça um **fork**  
+1. Faça um fork do repositório  
 2. Crie uma branch (`git checkout -b feature/nova-feature`)  
-3. Commit suas alterações (`git commit -m "feat: nova feature"`)  
-4. Push para sua branch (`git push origin feature/nova-feature`)  
-5. Abra um **Pull Request** 💙
+3. Realize as modificações e commits  
+4. Envie o pull request com uma breve descrição da melhoria  
 
-Mais detalhes em [`CONTRIBUTING.md`](CONTRIBUTING.md)
-
----
-
-## 🪪 Licença
-
-Distribuído sob a licença **MIT** — veja [`LICENSE`](LICENSE) para mais detalhes.
+Mais informações em [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
 ---
 
-## 🌟 Apoie o projeto
+## Licença
 
-Se esse utilitário te ajudou, deixe uma ⭐ no repositório!  
-Isso incentiva o desenvolvimento de mais ferramentas para automação contábil e financeira.
+Distribuído sob a licença **MIT**.  
+Consulte o arquivo [`LICENSE`](LICENSE) para mais informações.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Feito_com_💙_por-Suelen%20Farias-8A2BE2?style=for-the-badge"/>
-</p>
+---
+
+## Autoria
+
+Desenvolvido por **Suelen Farias**.  
+Projeto aberto para colaboração e aprimoramento contínuo.

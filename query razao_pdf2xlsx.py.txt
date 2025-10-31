@@ -1,0 +1,209 @@
+1) razao_pdf2xlsx.py (versão pública / CLI)
+
+# -*- coding: utf-8 -*-
+"""
+razao_pdf2xlsx.py — Extrai lançamentos de um Razão em PDF para Excel (formato tabular).
+
+Uso (linha de comando):
+    python razao_pdf2xlsx.py --pdf "entrada.pdf" --out "saida.xlsx"
+
+Requisitos:
+    pandas, pdfplumber, openpyxl
+    pip install -r requirements.txt
+"""
+
+from pathlib import Path
+import re
+from datetime import datetime
+import argparse
+import sys
+from typing import Iterable, List, Tuple, Optional
+import pandas as pd
+import pdfplumber
+
+# -----------------------------------------------
+# Padrões / Regex
+# -----------------------------------------------
+# Detecta início de lançamento em QUALQUER ponto da linha (data + lote + lanç)
+START_RE = re.compile(r"(\d{2}/\d{2}/\d{4})\s+(\d+)\s+(\d+)\b")
+
+# Padrões monetários BR
+money_pat = r"\d{1,3}(?:\.\d{3})*,\d{2}|\d+,\d{2}"   # 10.033,00 | 0,00 | 123,45
+money_re  = re.compile(rf"^(?:{money_pat})$")
+saldo_re  = re.compile(rf"^(?:{money_pat})([CDcd])$")  # ex.: 27.359,84C
+
+# Linhas usuais de cabeçalho/rodapé para ignorar — genéricas (sem nomes próprios)
+DEFAULT_IGNORE_LINES = (
+    "Raz. Analítico",
+    "Conta Contábil",
+    "CNPJ",
+    "Emissão:",
+    "Folha:",
+    "Débito Crédito Saldo Acum.LoteDt. Movto Lanç Histórico",
+)
+
+# -----------------------------------------------
+# Funções utilitárias
+# -----------------------------------------------
+def is_period_line(s: str) -> bool:
+    """Ex.: '01/01/2025 até 31/03/2025'."""
+    return bool(re.search(r"\d{2}/\d{2}/\d{4}.*\baté\b.*\d{2}/\d{2}/\d{4}", s))
+
+def load_ignore_list(extra_ignores: Iterable[str]) -> Tuple[str, ...]:
+    """
+    Monta a lista de linhas a ignorar, combinando padrões default com extras
+    passados por CLI (ex.: --ignore "NOME DA ENTIDADE" --ignore "Relatório XYZ").
+    """
+    extras = tuple(x.strip() for x in extra_ignores if x and x.strip())
+    return DEFAULT_IGNORE_LINES + extras
+
+def extract_amounts_anywhere(text: str) -> Tuple[Optional[str], Optional[str], Optional[str], str]:
+    """
+    Dentro do bloco (linha do lançamento + continuações), encontra o PRIMEIRO trio:
+      Débito, Crédito, Saldo(+C/D).
+    Remove esses tokens do texto e retorna (deb, cred, saldo, historico_limpo).
+    Mantém formatação BR (ex.: "10.033,00", "27.359,84C").
+    """
+    toks = text.split()
+    n = len(toks)
+    i = 0
+    while i <= n - 3:
+        t1, t2, t3 = toks[i], toks[i+1], toks[i+2]
+
+        # Caso A: saldo com C/D grudado (ex.: 27.359,84C)
+        m3 = saldo_re.match(t3)
+        if money_re.match(t1) and money_re.match(t2) and m3:
+            deb, cred = t1, t2
+            saldo = t3[:-1] + t3[-1].upper()
+            hist = " ".join(toks[:i] + toks[i+3:])
+            return deb, cred, saldo, hist.strip()
+
+        # Caso B: saldo sem sinal + sinal separado no 4º token (ex.: 27.359,84 C)
+        if i+3 < n and money_re.match(t1) and money_re.match(t2) and money_re.match(t3) and toks[i+3] in ("C","D","c","d"):
+            deb, cred = t1, t2
+            saldo = t3 + toks[i+3].upper()
+            hist = " ".join(toks[:i] + toks[i+4:])
+            return deb, cred, saldo, hist.strip()
+
+        i += 1
+
+    return None, None, None, text.strip()
+
+def parse_pdf_anywhere(pdf_path: Path, ignore_lines: Tuple[str, ...]) -> List[dict]:
+    """
+    Parser robusto:
+      - detecta início por START_RE.search (data + lote + lanç) em qualquer posição da linha;
+      - concatena até o próximo lançamento;
+      - extrai Débito/Crédito/Saldo e devolve Histórico limpo.
+      - ignora linhas genéricas de cabeçalho/rodapé configuráveis.
+    """
+    regs = []
+    with pdfplumber.open(pdf_path) as pdf:
+        current = None  # {"dt","lote","lanc","body"}
+        for page in pdf.pages:
+            lines = (page.extract_text(x_tolerance=2, y_tolerance=2) or "").splitlines()
+            for raw in lines:
+                ln = (raw or "").strip()
+                if not ln:
+                    continue
+                if is_period_line(ln) or any(tok in ln for tok in ignore_lines):
+                    continue
+
+                m = START_RE.search(ln)
+                if m:
+                    # Fecha bloco anterior
+                    if current:
+                        deb, cred, saldo, hist = extract_amounts_anywhere(current["body"])
+                        regs.append({
+                            "Dt. Movto": current["dt"],
+                            "Lote": int(current["lote"]),
+                            "Lanç": int(current["lanc"]),
+                            "Histórico": hist,
+                            "Débito": deb,
+                            "Crédito": cred,
+                            "Saldo Acum": saldo,
+                        })
+                    # Inicia novo bloco
+                    dt, lote, lanc = m.groups()
+                    rest = ln[m.end():].strip()   # tudo após "data lote lanç"
+                    current = {"dt": dt, "lote": lote, "lanc": lanc, "body": rest}
+                else:
+                    # Continuação do bloco atual
+                    if current:
+                        current["body"] += (" " if current["body"] else "") + ln
+
+        # Flush final
+        if current:
+            deb, cred, saldo, hist = extract_amounts_anywhere(current["body"])
+            regs.append({
+                "Dt. Movto": current["dt"],
+                "Lote": int(current["lote"]),
+                "Lanç": int(current["lanc"]),
+                "Histórico": hist,
+                "Débito": deb,
+                "Crédito": cred,
+                "Saldo Acum": saldo,
+            })
+    return regs
+
+def save_excel_safely(df: pd.DataFrame, out_xlsx: Path, sheet_name: str = "lancamentos") -> Path:
+    """
+    Salva o DataFrame em Excel. Se o destino estiver aberto/bloqueado,
+    cria uma cópia com timestamp no nome.
+    """
+    out_xlsx = Path(out_xlsx)
+    out_xlsx.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with pd.ExcelWriter(out_xlsx, engine="openpyxl") as writer:
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
+        return out_xlsx
+    except PermissionError:
+        alt = out_xlsx.with_name(f"{out_xlsx.stem}_{datetime.now():%Y%m%d_%H%M%S}{out_xlsx.suffix}")
+        with pd.ExcelWriter(alt, engine="openpyxl") as writer:
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
+        return alt
+
+# -----------------------------------------------
+# CLI
+# -----------------------------------------------
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        description="Extrai lançamentos de Razão (PDF) para Excel tabular."
+    )
+    p.add_argument("--pdf", required=True, type=Path, help="Caminho do PDF de entrada.")
+    p.add_argument("--out", required=True, type=Path, help="Arquivo Excel de saída (.xlsx).")
+    p.add_argument("--sheet-name", default="lancamentos", help="Nome da planilha no Excel.")
+    p.add_argument(
+        "--ignore",
+        action="append",
+        default=[],
+        help="Linha/padrão adicional para ignorar (pode repetir a flag)."
+    )
+    return p.parse_args()
+
+def main() -> int:
+    args = parse_args()
+
+    if not args.pdf.exists():
+        print(f"Erro: arquivo não encontrado: {args.pdf}", file=sys.stderr)
+        return 2
+
+    ignore_lines = load_ignore_list(args.ignore)
+    records = parse_pdf_anywhere(args.pdf, ignore_lines)
+    df = pd.DataFrame.from_records(records)
+
+    if df.empty:
+        print("Nenhum lançamento estruturado encontrado. Se o PDF for imagem/scan, aplique OCR e rode novamente.", file=sys.stderr)
+        return 3
+
+    # Ordenação e colunas finais (na ordem pedida)
+    df["Dt. Movto"] = pd.to_datetime(df["Dt. Movto"], format="%d/%m/%Y", errors="coerce")
+    df = df.sort_values(["Dt. Movto", "Lote", "Lanç"], ignore_index=True)
+    df = df[["Dt. Movto", "Lote", "Lanç", "Histórico", "Débito", "Crédito", "Saldo Acum"]]
+
+    out_path = save_excel_safely(df, args.out, sheet_name=args.sheet_name)
+    print(f"OK! Salvo em: {out_path}")
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())

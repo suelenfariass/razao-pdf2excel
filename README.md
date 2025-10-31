@@ -15,7 +15,7 @@ O projeto tem como objetivo facilitar a análise de dados contábeis, automatiza
 
 ---
 
-## Principais Recursos
+## Objetivos
 
 - Leitura e extração automática de lançamentos contábeis.
 - Identificação de campos `Data`, `Lote`, `Lançamento`, `Histórico`, `Débito`, `Crédito` e `Saldo Acumulado`.
@@ -25,7 +25,7 @@ O projeto tem como objetivo facilitar a análise de dados contábeis, automatiza
 
 ---
 
-## Tecnologias Utilizadas
+## Bibliotecas utilizadas
 
 - [Python 3.9+](https://www.python.org/)
 - [pandas](https://pandas.pydata.org/)
@@ -136,25 +136,6 @@ razao-pdf2excel/
 
 ---
 
-## Contribuindo
-
-1. Faça um fork do repositório  
-2. Crie uma branch (`git checkout -b feature/nova-feature`)  
-3. Realize as modificações e commits  
-4. Envie o pull request com uma breve descrição da melhoria  
-
-Mais informações em [`CONTRIBUTING.md`](CONTRIBUTING.md)
-
----
-
-## Licença
-
-Distribuído sob a licença **MIT**.  
-Consulte o arquivo [`LICENSE`](LICENSE) para mais informações.
-
----
-
 ## Autoria
 
 Desenvolvido por **Suelen Farias**.  
-Projeto aberto para colaboração e aprimoramento contínuo.
